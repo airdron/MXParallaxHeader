@@ -87,8 +87,14 @@ static void * const kMXParallaxHeaderKVOContext = (void*)&kMXParallaxHeaderKVOCo
 - (void)setHeight:(CGFloat)height {
     if (_height != height) {
         
-        //Adjust content inset
-        [self adjustScrollViewTopInset:self.scrollView.contentInset.top - _height + height];
+        if ([self.scrollView isKindOfClass:UITableView.class]) {
+            //Adjust the table header view frame
+            [self setTableHeaderViewFrame:CGRectMake(0, 0, CGRectGetWidth(self.scrollView.frame), height)];
+            [self adjustScrollViewTopInset:MIN(self.minimumHeight, height)];
+        } else {
+            //Adjust content inset
+            [self adjustScrollViewTopInset:self.scrollView.contentInset.top - _height + height];
+        }
         
         _height = height;
         [self updateConstraints];
@@ -98,6 +104,11 @@ static void * const kMXParallaxHeaderKVOContext = (void*)&kMXParallaxHeaderKVOCo
 
 - (void)setMinimumHeight:(CGFloat)minimumHeight {
     _minimumHeight = minimumHeight;
+    
+    if ([self.scrollView isKindOfClass:UITableView.class]) {
+        [self adjustScrollViewTopInset:MIN(minimumHeight, self.height)];
+    }
+    
     [self layoutContentView];
 }
 
@@ -105,9 +116,16 @@ static void * const kMXParallaxHeaderKVOContext = (void*)&kMXParallaxHeaderKVOCo
     if (_scrollView != scrollView) {
         _scrollView = scrollView;
         
-        //Adjust content inset
-        [self adjustScrollViewTopInset:scrollView.contentInset.top + self.height];
-        [scrollView addSubview:self.contentView];
+        
+        if ([scrollView isKindOfClass:UITableView.class]) {
+            //Adjust the table header view frame
+            [self setTableHeaderViewFrame:CGRectMake(0, 0, CGRectGetWidth(scrollView.frame), self.height)];
+            [self adjustScrollViewTopInset:self.minimumHeight];
+        } else {
+            //Adjust content inset
+            [self adjustScrollViewTopInset:scrollView.contentInset.top + self.height];
+            [scrollView addSubview:self.contentView];
+        }
         
         //Layout content view
         [self layoutContentView];
@@ -139,6 +157,10 @@ static void * const kMXParallaxHeaderKVOContext = (void*)&kMXParallaxHeaderKVOCo
             
         case MXParallaxHeaderModeTopFill:
             [self setTopFillModeConstraints];
+            break;
+            
+        case MXParallaxHeaderModeBottomFill:
+            [self setBottomFillModeConstraints];
             break;
             
         case MXParallaxHeaderModeTop:
@@ -191,6 +213,14 @@ static void * const kMXParallaxHeaderKVOContext = (void*)&kMXParallaxHeaderKVOCo
     [self.contentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|[v(>=height)]-0.0@highPriority-|" options:0 metrics:metrics views:binding]];
 }
 
+- (void) setBottomFillModeConstraints {
+    NSDictionary *binding   = @{@"v" : self.view};
+    NSDictionary *metrics   = @{@"highPriority" : @(UILayoutPriorityDefaultHigh),
+                                @"height"       : @(self.height)};
+    [self.contentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|[v]|" options:0 metrics:nil views:binding]];
+    [self.contentView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|-0.0@highPriority-[v(>=height)]|" options:0 metrics:metrics views:binding]];
+}
+
 - (void)setTopModeConstraints {
     NSDictionary *binding  = @{@"v" : self.view};
     NSDictionary *metrics   = @{@"height" : @(self.height)};
@@ -209,8 +239,25 @@ static void * const kMXParallaxHeaderKVOContext = (void*)&kMXParallaxHeaderKVOCo
 
 - (void)layoutContentView {
     CGFloat minimumHeight = MIN(self.minimumHeight, self.height);
-    CGFloat relativeYOffset = self.scrollView.contentOffset.y + self.scrollView.contentInset.top - self.height;
-    CGFloat relativeHeight  = -relativeYOffset;
+    CGFloat relativeHeight;
+    CGFloat relativeYOffset;
+    
+    if ([self.scrollView isKindOfClass:UITableView.class]) {
+        relativeYOffset = self.scrollView.contentOffset.y;
+        relativeHeight  = self.height - relativeYOffset;
+        
+        // Keep table header view over sections
+        [self.scrollView bringSubviewToFront:self.contentView.superview];
+        
+        // Adjust the table view inset (cf. http://stackoverflow.com/a/5669879 )
+        UIEdgeInsets inset = self.scrollView.contentInset;
+        inset.top = relativeYOffset < 0 ?: self.minimumHeight;
+        self.scrollView.contentInset = inset;
+        
+    } else {
+        relativeYOffset = self.scrollView.contentOffset.y + self.scrollView.contentInset.top - self.height;
+        relativeHeight  = -relativeYOffset;
+    }
     
     self.contentView.frame = (CGRect){
         .origin.x       = 0,
@@ -233,6 +280,17 @@ static void * const kMXParallaxHeaderKVOContext = (void*)&kMXParallaxHeaderKVOCo
     self.scrollView.contentInset = inset;
 }
 
+- (void)setTableHeaderViewFrame:(CGRect)frame {
+    
+    //Create a table header view that will raise KVO
+    MXParallaxView *headerView = [[MXParallaxView alloc] initWithFrame:frame];
+    headerView.parent = self;
+    
+    [headerView addSubview:self.contentView];
+    [(UITableView *)self.scrollView setTableHeaderView:headerView];
+    [headerView setNeedsLayout];
+}
+
 #pragma mark KVO
 
 //This is where the magic happens...
@@ -247,7 +305,8 @@ static void * const kMXParallaxHeaderKVOContext = (void*)&kMXParallaxHeaderKVOCo
                 [(id<MXParallaxHeader>)self.view parallaxHeaderDidScroll:self];
             }
         }
-    } else {
+    }
+    else {
         [super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
     }
 }
@@ -260,15 +319,10 @@ static void * const kMXParallaxHeaderKVOContext = (void*)&kMXParallaxHeaderKVOCo
     MXParallaxHeader *parallaxHeader = objc_getAssociatedObject(self, @selector(parallaxHeader));
     if (!parallaxHeader) {
         parallaxHeader = [MXParallaxHeader new];
-        [self setParallaxHeader:parallaxHeader];
+        parallaxHeader.scrollView = self;
+        objc_setAssociatedObject(self, @selector(parallaxHeader), parallaxHeader, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
     return parallaxHeader;
-}
-
-- (void)setParallaxHeader:(MXParallaxHeader *)parallaxHeader {
-    parallaxHeader.scrollView = self;
-    objc_setAssociatedObject(self, @selector(parallaxHeader), parallaxHeader, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    
 }
 
 @end

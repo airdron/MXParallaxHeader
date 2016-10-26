@@ -22,32 +22,36 @@
 
 #import <UIKit/UIKit.h>
 
-NS_ASSUME_NONNULL_BEGIN
-
 /**
  The parallac header mode.
  */
 typedef NS_ENUM(NSInteger, MXParallaxHeaderMode) {
     /**
+     The option to center the content in the header’s bounds, keeping the proportions the same.
+     */
+    MXParallaxHeaderModeCenter = 0,
+    /**
      The option to scale the content to fill the size of the header. Some portion of the content may be clipped to fill the header’s bounds.
      */
-    MXParallaxHeaderModeFill = 0,
+    MXParallaxHeaderModeFill,
     /**
      The option to scale the content to fill the size of the header and aligned at the top in the header's bounds.
      */
     MXParallaxHeaderModeTopFill,
     /**
+     The option to scale the content to fill the size of the header and aligned at the bottom in the header's bounds.
+     */
+    MXParallaxHeaderModeBottomFill,
+    /**
      The option to center the content aligned at the top in the header's bounds.
      */
     MXParallaxHeaderModeTop,
     /**
-     The option to center the content in the header’s bounds, keeping the proportions the same.
-     */
-    MXParallaxHeaderModeCenter,
-    /**
      The option to center the content aligned at the bottom in the header’s bounds.
      */
-    MXParallaxHeaderModeBottom
+    MXParallaxHeaderModeBottom,
+    
+
 };
 
 /**
@@ -58,22 +62,22 @@ typedef NS_ENUM(NSInteger, MXParallaxHeaderMode) {
 /**
  The content view on top of the UIScrollView's content.
  */
-@property (nonatomic,readonly) UIView *contentView;
+@property (nonatomic,strong,readonly,nonnull) UIView *contentView;
 
 /**
  The header's view.
  */
-@property (nonatomic,strong,nullable) IBOutlet UIView *view;
+@property (nonatomic,strong,nullable) UIView *view;
 
 /**
  The header's default height. 0 0 by default.
  */
-@property (nonatomic) IBInspectable CGFloat height;
+@property (nonatomic) CGFloat height;
 
 /**
  The header's minimum height while scrolling up. 0 by default.
  */
-@property (nonatomic) IBInspectable CGFloat minimumHeight;
+@property (nonatomic) CGFloat minimumHeight;
 
 /**
  The parallax header behavior mode.
@@ -90,7 +94,7 @@ typedef NS_ENUM(NSInteger, MXParallaxHeaderMode) {
 @protocol MXParallaxHeader <NSObject>
 
 @optional
-- (void)parallaxHeaderDidScroll:(MXParallaxHeader *)parallaxHeader;
+- (void) parallaxHeaderDidScroll:(nonnull MXParallaxHeader *)parallaxHeader;
 
 @end
 
@@ -102,8 +106,6 @@ typedef NS_ENUM(NSInteger, MXParallaxHeaderMode) {
 /**
  The parallax header.
  */
-@property (nonatomic, strong) IBOutlet MXParallaxHeader *parallaxHeader;
+@property (nonatomic,strong,readonly,nonnull) MXParallaxHeader *parallaxHeader;
 
 @end
-
-NS_ASSUME_NONNULL_END
