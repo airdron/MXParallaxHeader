@@ -64,9 +64,7 @@ static void * const kMXScrollViewKVOContext = (void*)&kMXScrollViewKVOContext;
     self.showsVerticalScrollIndicator = NO;
     self.directionalLockEnabled = YES;
     self.bounces = YES;
-    
-    self.panGestureRecognizer.cancelsTouchesInView = NO;
-    
+        
     self.observedViews = [NSMutableArray array];
     
     [self addObserver:self forKeyPath:NSStringFromSelector(@selector(contentOffset))
@@ -180,7 +178,7 @@ static void * const kMXScrollViewKVOContext = (void*)&kMXScrollViewKVOContext;
                 
             } else if (self.contentOffset.y < -self.contentInset.top && !self.bounces) {
                 [self scrollView:self setContentOffset:CGPointMake(self.contentOffset.x, -self.contentInset.top)];
-            } else if (self.contentOffset.y > -self.parallaxHeader.minimumHeight) {
+            } else if (self.contentOffset.y > -ceil(self.parallaxHeader.minimumHeight)) {
                 [self scrollView:self setContentOffset:CGPointMake(self.contentOffset.x, -self.parallaxHeader.minimumHeight)];
             }
             
