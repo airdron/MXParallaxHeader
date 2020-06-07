@@ -163,9 +163,10 @@ static void * const kMXScrollViewKVOContext = (void*)&kMXScrollViewKVOContext;
             //Adjust self scroll offset when scroll down
             if (diff > 0 && _lock) {
                 [self scrollView:self setContentOffset:old];
-            }
-            else if (((self.contentOffset.y < -self.contentInset.top) && !self.bounces)) {
+            } else if (((self.contentOffset.y < -self.contentInset.top) && !self.bounces)) {
                 [self scrollView:self setContentOffset:CGPointMake(self.contentOffset.x, -self.contentInset.top)];
+            } else if (self.contentOffset.y > -ceil(self.parallaxHeader.minimumHeight)) {
+                [self scrollView:self setContentOffset:CGPointMake(self.contentOffset.x, -ceil(self.parallaxHeader.minimumHeight))];
             }
         } else {
             //Adjust the observed scrollview's content offset
